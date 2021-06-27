@@ -26,6 +26,7 @@ def open_up():
     r.sendline(str(MAX_PANEL_POWER))
     r.recvuntil("The final answer should be a unit vector")
     r.sendline("r:0,0,0")
+    r, _dummy = scoop_vals(r)
     return r
 
 def parse_results(lines):
@@ -91,6 +92,35 @@ def find_odd_one_out(results):
             d_out = d
     return d_out
 
+def get_sun_dir(results, fail_case):
+    dir_map = direction_map()
+    result = np.zeros(3)
+    for m, vals in results:
+        if vals[fail_case] > 0.0:
+            continue
+        tmp_result = np.zeros(3)
+        count = 0
+        for k in vals:
+            if vals[k] <= 0.0:
+                continue
+            tmp_result += vals[k] * np.dot(m.T, dir_map[k])
+            count = count + 1
+        if count == 3:
+            result += tmp_result
+    return result / np.sqrt(np.dot(result, result))
+
+
+def get_fail_dir(results, fail_case):
+    dir_map = direction_map()
+    sun_dir = get_sun_dir(results, fail_case)
+    print("sun_dir is " + str(sun_dir))
+    result = np.zeros(3)
+    for m, vals in results:
+        if vals[fail_case] <= 0.0:
+            continue
+        result += vals[fail_case] * np.dot(m, sun_dir)
+    return result / np.sqrt(np.dot(result, result))
+
 if __name__ == "__main__":
     r = open_up()
     results = []
@@ -99,5 +129,10 @@ if __name__ == "__main__":
         r, vals = scoop_vals(r)
         results.append((m, vals))
     failing = find_odd_one_out(results)
+    print(results)
     print(failing)
+    fail_dir = get_fail_dir(results, failing)
+    print("fail dir " + str(fail_dir))
+    r.sendline("s:" + ",".join([str(x) for x in fail_dir]))
+    r.interactive()
 
